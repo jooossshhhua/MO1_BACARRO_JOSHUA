@@ -1,0 +1,47 @@
+CPU Utilization: 0%
+Cores Used: 0
+Cores Available: 32
+----------------
+Running processes:
+
+Finished processes:
+process1 (06/22/2025 12:50:35AM) Finished 100 / 100
+process2 (06/22/2025 12:50:37AM) Finished 100 / 100
+process3 (06/22/2025 12:50:39AM) Finished 100 / 100
+process4 (06/22/2025 12:50:42AM) Finished 100 / 100
+process5 (06/22/2025 12:50:43AM) Finished 100 / 100
+process6 (06/22/2025 12:50:46AM) Finished 100 / 100
+process7 (06/22/2025 12:50:48AM) Finished 100 / 100
+----------------
+
+CPU Utilization: 0%
+Cores Used: 0
+Cores Available: 4
+----------------
+Running processes:
+
+Finished processes:
+Joshua (06/28/2025 08:04:08PM) Finished 50 / 50
+process1 (06/28/2025 08:04:22PM) Finished 50 / 50
+process2 (06/28/2025 08:04:29PM) Finished 50 / 50
+process4 (06/28/2025 08:04:31PM) Finished 50 / 50
+process3 (06/28/2025 08:04:32PM) Finished 50 / 50
+process5 (06/28/2025 08:04:43PM) Finished 50 / 50
+process6 (06/28/2025 08:04:45PM) Finished 50 / 50
+process7 (06/28/2025 08:04:49PM) Finished 50 / 50
+process8 (06/28/2025 08:04:50PM) Finished 50 / 50
+process9 (06/28/2025 08:04:54PM) Finished 50 / 50
+process10 (06/28/2025 08:04:56PM) Finished 50 / 50
+process12 (06/28/2025 08:04:57PM) Finished 50 / 50
+process11 (06/28/2025 08:04:58PM) Finished 50 / 50
+process13 (06/28/2025 08:04:59PM) Finished 50 / 50
+process14 (06/28/2025 08:04:59PM) Finished 50 / 50
+process16 (06/28/2025 08:05:00PM) Finished 50 / 50
+process15 (06/28/2025 08:05:01PM) Finished 50 / 50
+process17 (06/28/2025 08:05:01PM) Finished 50 / 50
+process18 (06/28/2025 08:05:02PM) Finished 50 / 50
+process21 (06/28/2025 08:05:02PM) Finished 50 / 50
+process20 (06/28/2025 08:05:02PM) Finished 50 / 50
+process19 (06/28/2025 08:05:02PM) Finished 50 / 50
+----------------
+
