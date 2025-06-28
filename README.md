@@ -1,16 +1,19 @@
 # MO1_BACARRO_JOSHUA
 
-This project is a **command-line CPU process scheduler simulation** for the subject CSOPESY. It supports two scheduling algorithms: **First-Come-First-Serve (FCFS)** and **Round-Robin (RR)**. Users can interact with the simulation through a custom console UI and execute commands to create, manage, and monitor simulated processes.
+Developer: Joshua Bacarro  
+Subject: CSOPESY  
+
+This project is a **command-line CPU process scheduler simulation** that supports two scheduling algorithms: **First-Come-First-Serve (FCFS)** and **Round-Robin (RR)**. Users can interact with the simulation through a custom console UI and execute commands to create, manage, and monitor simulated processes.
 
 ---
 
-##  Features
+## Features
 
 - **Command Interpreter** — recognizes commands like `initialize`, `screen -s`, `scheduler-test`, etc.
-- **Console UI** — processes are shown with details such as ID, status, variables, and logs.
-- **Process Simulation** — supports execution of dummy instructions like `DECLARE`, `ADD`, `SUBTRACT`, and `PRINT`.
-- **Round-Robin & FCFS Scheduling** — multi-threaded execution with CPU core management and quantum timing.
-- **Logging** — generates a report in `csopesy-log.txt` showing CPU utilization, core usage, and process stats.
+- **Console UI** — displays each process with ID, status, declared variables, and execution logs.
+- **Process Simulation** — supports dummy instructions such as `DECLARE`, `ADD`, `SUBTRACT`, and `PRINT`.
+- **Round-Robin & FCFS Scheduling** — simulates multi-core CPU scheduling with quantum control.
+- **Logging** — outputs CPU utilization and process execution summary in `csopesy-log.txt`.
 
 ---
 
@@ -19,15 +22,19 @@ This project is a **command-line CPU process scheduler simulation** for the subj
 | Command           | Description |
 |------------------|-------------|
 | `initialize`      | Loads configuration from `config.txt` |
-| `screen -s NAME`  | Creates a new process with name `NAME` |
-| `screen -r NAME`  | Views a process screen by name |
-| `scheduler-test`  | Starts auto-creating processes |
+| `screen -s NAME`  | Creates a new process named `NAME` |
+| `screen -r NAME`  | Views the process screen for `NAME` |
+| `scheduler-test`  | Starts automatic process creation |
 | `scheduler-stop`  | Stops test process generation |
-| `screen -ls`      | Lists running and finished processes |
-| `report-util`     | Writes CPU & process stats to a log file |
-| `process-smi`     | Shows live process status (from screen view) |
+| `screen -ls`      | Lists all active and finished processes |
+| `report-util`     | Logs CPU and process statistics |
+| `process-smi`     | Shows live process status |
 
 ---
 
-##  Example `config.txt`
+## How to Compile and Run
+
+1. Make sure you have a C++ compiler installed (e.g., `g++`).
+2. Open a terminal and navigate to the folder containing the source code.
+3. Compile the program using the following command:
 
