@@ -282,15 +282,27 @@ void FCFS_Scheduler::execute_instruction(Process* proc, const Instruction& instr
 
     if (instr.type == InstructionType::PRINT) {
         std::string msg = instr.args[0];
-        for (const auto& pair : vars) {
-            size_t pos = msg.find(pair.first);
-            if (pos != std::string::npos) {
-                msg.replace(pos, pair.first.length(), std::to_string(pair.second));
+
+        // Replace all variable names in the message
+        for (const auto& it : proc->variables) {
+            const std::string& var = it.first;
+            const uint16_t val = it.second;
+
+            size_t pos = msg.find(var);
+            while (pos != std::string::npos) {
+                msg.replace(pos, var.length(), std::to_string(val));
+                pos = msg.find(var, pos + 1);
             }
         }
 
+        // Remove quotes and + symbols
+        msg.erase(std::remove(msg.begin(), msg.end(), '\"'), msg.end());
+        msg.erase(std::remove(msg.begin(), msg.end(), '+'), msg.end());
+
         proc->printLogs.push_back(msg);
     }
+
+
     else if (instr.type == InstructionType::DECLARE) {
         const std::string& var = instr.args[0];
         uint16_t val = static_cast<uint16_t>(std::stoi(instr.args[1]));
@@ -341,8 +353,9 @@ void FCFS_Scheduler::execute_instruction(Process* proc, const Instruction& instr
                 return;
             }
 
-            // ✅ Demand paging logic
             int virtual_page = addr / frame_size;
+            int offset = addr % frame_size;
+
             if (proc->page_table.count(virtual_page) == 0) {
                 int frame_index = memory_manager->allocate_frame(proc->name, virtual_page);
                 if (frame_index == -1) {
@@ -356,7 +369,8 @@ void FCFS_Scheduler::execute_instruction(Process* proc, const Instruction& instr
                 proc->page_table[virtual_page] = frame_index;
             }
 
-            proc->variables[var_name] = proc->memory_map.count(addr) ? proc->memory_map[addr] : 0;
+            std::vector<uint16_t>& frame_data = memory_manager->get_frame_data(proc->name, virtual_page);
+            proc->variables[var_name] = frame_data[offset];
         }
         catch (...) {
             std::cout << "READ instruction failed (invalid address).\n";
@@ -378,6 +392,8 @@ void FCFS_Scheduler::execute_instruction(Process* proc, const Instruction& instr
 
             // ✅ Demand paging logic
             int virtual_page = addr / frame_size;
+            int offset = addr % frame_size;
+
             if (proc->page_table.count(virtual_page) == 0) {
                 int frame_index = memory_manager->allocate_frame(proc->name, virtual_page);
                 if (frame_index == -1) {
@@ -399,12 +415,17 @@ void FCFS_Scheduler::execute_instruction(Process* proc, const Instruction& instr
                 value = proc->variables.count(val_str) ? proc->variables[val_str] : 0;
             }
 
-            proc->memory_map[addr] = std::max((uint16_t)0, std::min(value, (uint16_t)65535));
+            // ✅ Write to backing frame and memory map
+            memory_manager->get_frame_data(proc->name, virtual_page)[offset] = value;
+            proc->memory_map[addr] = value;  // ✅ visible in process-smi
+
         }
         catch (...) {
             std::cout << "WRITE instruction failed (invalid address/value).\n";
         }
     }
+
+
 
 }
 

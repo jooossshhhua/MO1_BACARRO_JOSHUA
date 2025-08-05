@@ -24,7 +24,9 @@ MemoryManager::MemoryManager(int max_mem, int frame_sz)
 int MemoryManager::allocate_frame(const std::string& process_name, int virtual_page) {
     for (int i = 0; i < num_frames; ++i) {
         if (!frame_table[i].used) {
-            frame_table[i] = { true, process_name, virtual_page };
+            frame_table[i].used = true;
+            frame_table[i].owner_process = process_name;
+            frame_table[i].virtual_page = virtual_page;
 
             std::vector<uint16_t> data;
             if (!load_from_swap(process_name, virtual_page, data)) {
@@ -37,6 +39,7 @@ int MemoryManager::allocate_frame(const std::string& process_name, int virtual_p
     }
     return -1; // no free frame
 }
+
 
 void MemoryManager::free_frame(int frame_index) {
     if (frame_index >= 0 && frame_index < num_frames) {

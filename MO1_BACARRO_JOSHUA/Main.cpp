@@ -150,15 +150,23 @@ std::vector<Instruction> generate_dummy_instructions(int count) {
 
     std::vector<Instruction> pattern = {
         { InstructionType::ADD, { "x", "x", "1" } },
+        { InstructionType::WRITE, { "0x0000", "x" } },
+        { InstructionType::READ, { "x", "0x0000" } },
         { InstructionType::PRINT, { "VALUE FROM X: x" } },
+
         { InstructionType::ADD, { "y", "y", "1" } },
+        { InstructionType::WRITE, { "0x0010", "y" } },
+        { InstructionType::READ, { "y", "0x0010" } },
         { InstructionType::PRINT, { "VALUE FROM Y: y" } },
+
         { InstructionType::ADD, { "z", "z", "1" } },
+        { InstructionType::WRITE, { "0x0020", "z" } },
+        { InstructionType::READ, { "z", "0x0020" } },
         { InstructionType::PRINT, { "VALUE FROM Z: z" } }
     };
 
     int patternSize = pattern.size();
-    int remaining = count - (int)declarations.size();  // <-- subtract DECLAREs
+    int remaining = count - (int)declarations.size();  // subtract DECLAREs
 
     int fullRepeats = remaining / patternSize;
     int leftover = remaining % patternSize;
@@ -166,18 +174,19 @@ std::vector<Instruction> generate_dummy_instructions(int count) {
     // Add DECLAREs first
     instructions.insert(instructions.end(), declarations.begin(), declarations.end());
 
-    // Then pattern
+    // Then repeat the pattern
     for (int i = 0; i < fullRepeats; ++i) {
         instructions.insert(instructions.end(), pattern.begin(), pattern.end());
     }
 
+    // Add remaining instructions from the pattern
     for (int i = 0; i < leftover; ++i) {
         instructions.push_back(pattern[i]);
     }
-    instructions.push_back({ InstructionType::WRITE, { "0x1000", "x" } });
-    instructions.push_back({ InstructionType::READ, { "temp", "0x1000" } });
+
     return instructions;
 }
+
 
 int main() {
     displayHeader();
@@ -456,10 +465,11 @@ int main() {
 
             if (!scheduler_testing) {
                 scheduler_testing = true;
+                int mem_size = 1024;
                 scheduler_thread = std::thread([&]() {
                     while (scheduler_testing) {
                         int commands_per_process = dist(gen);
-                        int mem_size = 1024;
+                       
                         if (Config::GetConfigParameters().scheduler == "fcfs") {
                             //fcfs_scheduler.add_process(new Process("process" + std::to_string(++process_count), commands_per_process));
                             Process* p = new Process("process" + std::to_string(++process_count), commands_per_process, mem_size);
