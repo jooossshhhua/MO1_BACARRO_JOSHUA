@@ -1,4 +1,4 @@
-#pragma once
+﻿#pragma once
 #include <string>
 #include <fstream>
 #include <chrono>
@@ -14,7 +14,10 @@ private:
     static int next_process_id;
 
 public:
+    std::unordered_map<int, int> page_table; 
 
+    std::unordered_map<uint32_t, uint16_t> memory_map;
+    int memory_size; // in bytes
     std::string name;
     int total_commands;
     int executed_commands;
@@ -33,10 +36,12 @@ public:
 
 
 
-    Process(const std::string& pname, int commands);
+    Process(const std::string& pname, int commands, int memory_size);
     ~Process();
     std::string get_start_time() const;
     std::string get_status() const;
+
+    void displayDetailedMemoryInfo() const;
 
     void displayProcessInfo() const;
 };

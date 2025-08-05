@@ -12,8 +12,49 @@
 #include <string>
 #include <random>
 #include <unordered_set>
+#include "MemoryManager.h"
 
+int frame_size;
+MemoryManager* memory_manager = nullptr;
+ // initialized with dummy values
 
+bool isPowerOfTwo(int x) {
+    return x >= 64 && x <= 65536 && (x & (x - 1)) == 0;
+}
+InstructionType get_instruction_type(const std::string& token) {
+    if (token == "DECLARE") return InstructionType::DECLARE;
+    if (token == "ADD") return InstructionType::ADD;
+    if (token == "SUBTRACT") return InstructionType::SUBTRACT;
+    if (token == "PRINT") return InstructionType::PRINT;
+    if (token == "SLEEP") return InstructionType::SLEEP;
+    if (token == "READ") return InstructionType::READ;
+    if (token == "WRITE") return InstructionType::WRITE;
+    return InstructionType::PRINT; // fallback
+}
+std::vector<Instruction> parse_instruction_string(const std::string& input) {
+    std::vector<Instruction> instructions;
+    std::stringstream ss(input);
+    std::string segment;
+
+    while (std::getline(ss, segment, ';')) {
+        std::stringstream line(segment);
+        std::string token;
+        std::vector<std::string> tokens;
+
+        while (line >> token) tokens.push_back(token);
+        if (tokens.empty()) continue;
+
+        Instruction instr;
+        instr.type = get_instruction_type(tokens[0]);
+
+        for (size_t i = 1; i < tokens.size(); ++i)
+            instr.args.push_back(tokens[i]);
+
+        instructions.push_back(instr);
+    }
+
+    return instructions;
+}
 /*
 
 std::vector<Instruction> generate_dummy_instructions(int count) {
@@ -133,7 +174,8 @@ std::vector<Instruction> generate_dummy_instructions(int count) {
     for (int i = 0; i < leftover; ++i) {
         instructions.push_back(pattern[i]);
     }
-
+    instructions.push_back({ InstructionType::WRITE, { "0x1000", "x" } });
+    instructions.push_back({ InstructionType::READ, { "temp", "0x1000" } });
     return instructions;
 }
 
@@ -170,15 +212,23 @@ int main() {
         }
 
         if (command != "initialize" && command != "exit" && initialized == false) {
-            if (Config::GetConfigParameters().num_cpu == NULL ||
+            if (Config::GetConfigParameters().num_cpu == 0 ||
                 Config::GetConfigParameters().scheduler == "" ||
-                Config::GetConfigParameters().quantum_cycles == NULL ||
-                Config::GetConfigParameters().batch_process_freq == NULL ||
-                Config::GetConfigParameters().min_ins == NULL ||
-                Config::GetConfigParameters().max_ins == NULL ||
-                Config::GetConfigParameters().delay_per_exec == NULL) {
+                Config::GetConfigParameters().quantum_cycles == 0 ||
+                Config::GetConfigParameters().batch_process_freq == 0 ||
+                Config::GetConfigParameters().min_ins == 0 ||
+                Config::GetConfigParameters().max_ins == 0 ||
+                Config::GetConfigParameters().delay_per_exec == 0 ||
+                Config::GetConfigParameters().max_overall_mem == 0 ||
+                Config::GetConfigParameters().mem_per_frame == 0 ||
+                Config::GetConfigParameters().min_mem_per_proc == 0 ||
+                Config::GetConfigParameters().max_mem_per_proc == 0) {
+
+
+
                 std::cout << "Initialize the program with command \"initialize\"" << std::endl;
             }
+
         }
 
         std::vector<std::shared_ptr<Console>> consoles = console_manager.getConsoles();
@@ -205,83 +255,128 @@ int main() {
         }
 
         // Current console is the main menu and the screen -s (create process) is entered.
-        else if (tokens[0] == "screen" && tokens[1] == "-s") {
+        else if (tokens.size() == 4 && tokens[0] == "screen" && tokens[1] == "-s") {
+            std::string pname = tokens[2];
+            int mem_size;
+
+            try {
+                mem_size = std::stoi(tokens[3]);
+            }
+            catch (...) {
+                std::cout << "invalid memory allocation" << std::endl;
+                continue;
+            }
+
+            if (!isPowerOfTwo(mem_size)) {
+                std::cout << "invalid memory allocation" << std::endl;
+                continue;
+            }
+
             std::random_device rd;
             std::mt19937 gen(rd());
             std::uniform_int_distribution<> dist(Config::GetConfigParameters().min_ins, Config::GetConfigParameters().max_ins);
+
+            int commands_per_process = dist(gen);
+
             if (Config::GetConfigParameters().scheduler == "fcfs") {
-                if (fcfs_scheduler.isValidProcessName(tokens[2]) == false) {
-                    std::cout << "Process with name \"" + tokens[2] + "\" already exists" << std::endl;
+                if (!fcfs_scheduler.isValidProcessName(pname)) {
+                    std::cout << "Process with name \"" + pname + "\" already exists" << std::endl;
                 }
                 else {
-                    int commands_per_process = dist(gen);
-                    Process* new_process = new Process(tokens[2], commands_per_process);
+                    Process* new_process = new Process(pname, commands_per_process, mem_size);
                     new_process->instructions = generate_dummy_instructions(commands_per_process);
                     new_process->total_commands = new_process->instructions.size();
 
                     fcfs_scheduler.add_process(new_process);
 
                     std::shared_ptr<Console> new_console(new Console(
-                        new_process->name, new_process->executed_commands, new_process->total_commands, new_process->process_id));
-                    screen_process_name = tokens[2];
+                        new_process->name, new_process->executed_commands,
+                        new_process->total_commands, new_process->process_id));
+                    screen_process_name = pname;
                     console_manager.setCurrentConsole(new_console);
-                    fcfs_scheduler.print_process_details(tokens[2], 0);
+                    fcfs_scheduler.print_process_details(pname, 0);
                 }
             }
 
             if (Config::GetConfigParameters().scheduler == "rr") {
-                if (rr_scheduler.isValidProcessName(tokens[2]) == false) {
-                    std::cout << "Process with name \"" + tokens[2] + "\" already exists" << std::endl;
+                if (!rr_scheduler.isValidProcessName(pname)) {
+                    std::cout << "Process with name \"" + pname + "\" already exists" << std::endl;
                 }
                 else {
-                    int commands_per_process = dist(gen);
-                    Process* new_process = new Process(tokens[2], commands_per_process);
+                    Process* new_process = new Process(pname, commands_per_process, mem_size);
                     new_process->instructions = generate_dummy_instructions(commands_per_process);
                     new_process->total_commands = new_process->instructions.size();
 
                     rr_scheduler.add_process(new_process);
 
                     std::shared_ptr<Console> new_console(new Console(
-                        new_process->name, new_process->executed_commands, new_process->total_commands, new_process->process_id));
-                    screen_process_name = tokens[2];
+                        new_process->name, new_process->executed_commands,
+                        new_process->total_commands, new_process->process_id));
+                    screen_process_name = pname;
                     console_manager.setCurrentConsole(new_console);
-                    rr_scheduler.print_process_details(tokens[2], 0);
+                    rr_scheduler.print_process_details(pname, 0);
                 }
             }
-            /*
-            if (Config::GetConfigParameters().scheduler == "fcfs") {
-                if (fcfs_scheduler.isValidProcessName(tokens[2]) == false) {
-                    std::cout << "Process with name \"" + tokens[2] + "\" already exists" << std::endl;
-                }
-                else {
-                    int commands_per_process = dist(gen);
-                    Process* new_process = new Process(tokens[2], commands_per_process);
-                    fcfs_scheduler.add_process(new_process);
-
-                    std::shared_ptr<Console> new_console(new Console(new_process->name, new_process->executed_commands, new_process->total_commands, new_process->process_id));
-                    screen_process_name = tokens[2];
-                    console_manager.setCurrentConsole(new_console);
-                    fcfs_scheduler.print_process_details(tokens[2], 0);
-
-                }
-            }
-
-            if (Config::GetConfigParameters().scheduler == "rr") {
-                if (rr_scheduler.isValidProcessName(tokens[2]) == false) {
-                    std::cout << "Process with name \"" + tokens[2] + "\" already exists" << std::endl;
-                }
-                else {
-                    int commands_per_process = dist(gen);
-                    Process* new_process = new Process(tokens[2], commands_per_process);
-                    rr_scheduler.add_process(new_process);
-
-                    std::shared_ptr<Console> new_console(new Console(new_process->name, new_process->executed_commands, new_process->total_commands, new_process->process_id));
-                    screen_process_name = tokens[2];
-                    console_manager.setCurrentConsole(new_console);
-                    rr_scheduler.print_process_details(tokens[2], 0);
-                }
-            }*/
         }
+        else if (tokens.size() >= 5 && tokens[0] == "screen" && tokens[1] == "-c") {
+            std::string pname = tokens[2];
+            int mem_size;
+            std::string instr_string = command.substr(command.find(tokens[4]));
+
+            try {
+                mem_size = std::stoi(tokens[3]);
+            }
+            catch (...) {
+                std::cout << "invalid memory allocation" << std::endl;
+                continue;
+            }
+
+            if (!isPowerOfTwo(mem_size)) {
+                std::cout << "invalid memory allocation" << std::endl;
+                continue;
+            }
+
+            std::vector<Instruction> parsed_instr = parse_instruction_string(instr_string);
+            if (parsed_instr.empty() || parsed_instr.size() > 50) {
+                std::cout << "invalid command" << std::endl;
+                continue;
+            }
+
+            if (Config::GetConfigParameters().scheduler == "fcfs") {
+                if (!fcfs_scheduler.isValidProcessName(pname)) {
+                    std::cout << "Process with name \"" + pname + "\" already exists" << std::endl;
+                }
+                else {
+                    Process* new_proc = new Process(pname, parsed_instr.size(), mem_size);
+                    new_proc->instructions = parsed_instr;
+                    new_proc->total_commands = parsed_instr.size();
+
+                    fcfs_scheduler.add_process(new_proc);
+                    std::shared_ptr<Console> new_console(new Console(pname, 0, new_proc->total_commands, new_proc->process_id));
+                    screen_process_name = pname;
+                    console_manager.setCurrentConsole(new_console);
+                    fcfs_scheduler.print_process_details(pname, 0);
+                }
+            }
+
+            if (Config::GetConfigParameters().scheduler == "rr") {
+                if (!rr_scheduler.isValidProcessName(pname)) {
+                    std::cout << "Process with name \"" + pname + "\" already exists" << std::endl;
+                }
+                else {
+                    Process* new_proc = new Process(pname, parsed_instr.size(), mem_size);
+                    new_proc->instructions = parsed_instr;
+                    new_proc->total_commands = parsed_instr.size();
+
+                    rr_scheduler.add_process(new_proc);
+                    std::shared_ptr<Console> new_console(new Console(pname, 0, new_proc->total_commands, new_proc->process_id));
+                    screen_process_name = pname;
+                    console_manager.setCurrentConsole(new_console);
+                    rr_scheduler.print_process_details(pname, 0);
+                }
+            }
+        }
+
 
         else if (command == "show") {
             console_manager.drawAllConsoles();
@@ -318,6 +413,12 @@ int main() {
         else if (command == "initialize") {
             initialized = true;
             Config::Initialize();
+            frame_size = Config::GetConfigParameters().mem_per_frame;
+        
+            memory_manager = new MemoryManager(
+                Config::GetConfigParameters().max_overall_mem,
+                frame_size
+            );
             std::cout << "Config initialized with \"" << "config.txt\" parameters" << std::endl;
 
             if (Config::GetConfigParameters().scheduler == "fcfs") {
@@ -346,7 +447,7 @@ int main() {
                 std::cout << "Scheduler test is not currently running.\n";
             }
         }
-
+        //BALIKAN TO PLEASE LANG MAY ERROR SA PROCESS
         // "scheduler-start"
         else if (command == "scheduler-start") {
             std::random_device rd;
@@ -358,10 +459,10 @@ int main() {
                 scheduler_thread = std::thread([&]() {
                     while (scheduler_testing) {
                         int commands_per_process = dist(gen);
-
+                        int mem_size = 1024;
                         if (Config::GetConfigParameters().scheduler == "fcfs") {
                             //fcfs_scheduler.add_process(new Process("process" + std::to_string(++process_count), commands_per_process));
-                            Process* p = new Process("process" + std::to_string(++process_count), commands_per_process);
+                            Process* p = new Process("process" + std::to_string(++process_count), commands_per_process, mem_size);
                             p->instructions = generate_dummy_instructions(commands_per_process);
                             p->total_commands = p->instructions.size();
                             fcfs_scheduler.add_process(p);
@@ -369,7 +470,7 @@ int main() {
                         }
 
                         if (Config::GetConfigParameters().scheduler == "rr") {
-                            Process* p = new Process("process" + std::to_string(++process_count), commands_per_process);
+                            Process* p = new Process("process" + std::to_string(++process_count), commands_per_process, mem_size);
                             p->instructions = generate_dummy_instructions(commands_per_process);
                             p->total_commands = p->instructions.size();
                             rr_scheduler.add_process(p);
@@ -389,6 +490,7 @@ int main() {
                 std::cout << "Scheduler test is already running.\n";
             }
         }
+        
 
         // "screen -ls"
         else if (tokens[0] == "screen" && tokens[1] == "-ls") {
@@ -431,6 +533,10 @@ int main() {
             screen_process_name = tokens[2];
             std::shared_ptr<Console> new_console(new Console("VIEW_SCREEN", 0, 0, 0));
             console_manager.setCurrentConsole(new_console);
+        }
+        else if (tokens.size() == 1 && tokens[0] == "vmstat") {
+            Console vmstatConsole("vmstat", 0, 0, -1);  // dummy console object
+            vmstatConsole.command_vmstat();            // calls actual memory manager
         }
 
         else if (command == "report-util") {

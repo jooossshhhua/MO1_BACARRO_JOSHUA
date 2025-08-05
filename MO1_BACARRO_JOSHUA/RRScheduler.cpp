@@ -1,11 +1,14 @@
-#include "RRScheduler.h"
+﻿#include "RRScheduler.h"
 #include <iostream>
 #include <chrono>
 #include "Config.h"
 #include <algorithm>
 #include "Instruction.h"
 #include <cctype>
+#include "MemoryManager.h"
 
+extern int frame_size;
+extern MemoryManager* memory_manager;
 RR_Scheduler::RR_Scheduler(int cores, int quantum) : num_cores(cores), time_quantum(quantum), running(false) {}
 
 RR_Scheduler::~RR_Scheduler() {
@@ -267,6 +270,7 @@ void RR_Scheduler::print_process_details(const std::string& process_name, int sc
             }
 
             proc->displayProcessInfo();
+            proc->displayDetailedMemoryInfo();
             return;
         }
     }
@@ -276,10 +280,12 @@ void RR_Scheduler::print_process_details(const std::string& process_name, int sc
         if (proc->name == process_name && screen == 0) {
             system("cls");
             proc->displayProcessInfo();
+            proc->displayDetailedMemoryInfo();
             return;
         }
         else if (proc->name == process_name && screen == 1) {
             proc->displayProcessInfo();
+            proc->displayDetailedMemoryInfo();
             return;
         }
     }
@@ -288,6 +294,7 @@ void RR_Scheduler::print_process_details(const std::string& process_name, int sc
     for (auto& proc : finished_processes) {
         if (proc->name == process_name && screen == 1) {
             proc->displayProcessInfo();
+            proc->displayDetailedMemoryInfo();
             std::cout << "Process " << process_name << " has finished and cannot be accessed after exiting this screen.\n";
             return;
         }
@@ -349,5 +356,84 @@ void RR_Scheduler::execute_instruction(Process* proc, const Instruction& instr) 
             }
         }
     }
+
+    else if (instr.type == InstructionType::READ) {
+        const std::string& var_name = instr.args[0];
+        std::string addr_str = instr.args[1];
+
+        try {
+            uint32_t addr = std::stoul(addr_str, nullptr, 16);
+            if (addr >= (uint32_t)proc->memory_size) {
+                std::cout << "Process " << proc->name << " shut down due to memory access violation error at "
+                    << proc->get_start_time() << ". " << addr_str << " invalid.\n";
+                proc->executed_commands = proc->total_commands;
+                return;
+            }
+
+            // ✅ Demand paging logic
+            int virtual_page = addr / frame_size;
+            if (proc->page_table.count(virtual_page) == 0) {
+                int frame_index = memory_manager->allocate_frame(proc->name, virtual_page);
+                if (frame_index == -1) {
+                    frame_index = memory_manager->evict_and_allocate(proc->name, virtual_page);
+                }
+                if (frame_index == -1) {
+                    std::cout << "Memory full. Cannot allocate frame for page " << virtual_page << "\n";
+                    proc->executed_commands = proc->total_commands;
+                    return;
+                }
+                proc->page_table[virtual_page] = frame_index;
+            }
+
+            proc->variables[var_name] = proc->memory_map.count(addr) ? proc->memory_map[addr] : 0;
+        }
+        catch (...) {
+            std::cout << "READ instruction failed (invalid address).\n";
+        }
+    }
+
+    else if (instr.type == InstructionType::WRITE) {
+        std::string addr_str = instr.args[0];
+        std::string val_str = instr.args[1];
+
+        try {
+            uint32_t addr = std::stoul(addr_str, nullptr, 16);
+            if (addr >= (uint32_t)proc->memory_size) {
+                std::cout << "Process " << proc->name << " shut down due to memory access violation error at "
+                    << proc->get_start_time() << ". " << addr_str << " invalid.\n";
+                proc->executed_commands = proc->total_commands;
+                return;
+            }
+
+            // ✅ Demand paging logic
+            int virtual_page = addr / frame_size;
+            if (proc->page_table.count(virtual_page) == 0) {
+                int frame_index = memory_manager->allocate_frame(proc->name, virtual_page);
+                if (frame_index == -1) {
+                    frame_index = memory_manager->evict_and_allocate(proc->name, virtual_page);
+                }
+                if (frame_index == -1) {
+                    std::cout << "Memory full. Cannot allocate frame for page " << virtual_page << "\n";
+                    proc->executed_commands = proc->total_commands;
+                    return;
+                }
+                proc->page_table[virtual_page] = frame_index;
+            }
+
+            uint16_t value = 0;
+            if (isdigit(val_str[0]) || (val_str[0] == '-' && isdigit(val_str[1]))) {
+                value = static_cast<uint16_t>(std::stoi(val_str));
+            }
+            else {
+                value = proc->variables.count(val_str) ? proc->variables[val_str] : 0;
+            }
+
+            proc->memory_map[addr] = std::max((uint16_t)0, std::min(value, (uint16_t)65535));
+        }
+        catch (...) {
+            std::cout << "WRITE instruction failed (invalid address/value).\n";
+        }
+    }
+
 }
 

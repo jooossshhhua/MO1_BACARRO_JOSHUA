@@ -2,7 +2,7 @@
 #include <string>
 #include <vector>
 
-enum class InstructionType { PRINT, DECLARE, ADD, SUBTRACT, SLEEP, FOR };
+enum class InstructionType { PRINT, DECLARE, ADD, SUBTRACT, SLEEP, FOR, READ, WRITE };
 
 struct Instruction {
     InstructionType type;

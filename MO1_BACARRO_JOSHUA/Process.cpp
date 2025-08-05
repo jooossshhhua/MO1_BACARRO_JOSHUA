@@ -1,12 +1,13 @@
-#include "process.h"
+﻿#include "process.h"
 #include <iomanip>
 #include <ctime>
 #include <sstream>
 #include <iostream>
 #include "Instruction.h"
 int Process::next_process_id = 1;
-Process::Process(const std::string& pname, int commands)
-    : name(pname), total_commands(commands), executed_commands(0), core_id(-1), process_id(next_process_id++) {
+Process::Process(const std::string& pname, int commands, int mem_size)
+    : name(pname), total_commands(commands), executed_commands(0),
+    core_id(-1), process_id(next_process_id++), memory_size(mem_size) {
     start_time = std::chrono::system_clock::now();
 }
 
@@ -68,3 +69,24 @@ void Process::displayProcessInfo() const {
 
 
 }
+void Process::displayDetailedMemoryInfo() const {
+    std::cout << "\n----- Variable Table -----\n";
+    for (const auto& pair : variables) {
+        std::cout << "  " << pair.first << " = " << pair.second << "\n";
+    }
+
+    std::cout << "\n----- Memory Map -----\n";
+    for (const auto& pair : memory_map) {
+        std::cout << "  0x" << std::hex << pair.first << " = " << std::dec << pair.second << "\n";
+    }
+
+    std::cout << "\n----- Page Table -----\n";
+    for (const auto& entry : page_table) {
+        int vp = entry.first;
+        int frame = entry.second;
+        std::cout << "  Virtual Page " << vp << " → Frame " << frame << "\n";
+    }
+
+    std::cout << "-------------------------\n";
+}
+

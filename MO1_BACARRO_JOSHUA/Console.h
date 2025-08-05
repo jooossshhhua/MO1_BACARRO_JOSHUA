@@ -22,4 +22,6 @@ public:
     void setCurrentLine(int cLine) { currentLine = cLine; }
     void setTotalLines(int tLines) { totalLines = tLines; }
     void setProcessId(int id) { processId = id; }
+    void command_vmstat();
+
 };
