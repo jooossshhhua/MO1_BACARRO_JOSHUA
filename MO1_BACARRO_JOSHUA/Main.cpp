@@ -233,9 +233,11 @@ int main() {
                 Config::GetConfigParameters().min_mem_per_proc == 0 ||
                 Config::GetConfigParameters().max_mem_per_proc == 0) {
 
-
+               
 
                 std::cout << "Initialize the program with command \"initialize\"" << std::endl;
+              
+
             }
 
         }
@@ -428,6 +430,7 @@ int main() {
                 Config::GetConfigParameters().max_overall_mem,
                 frame_size
             );
+           
             std::cout << "Config initialized with \"" << "config.txt\" parameters" << std::endl;
 
             if (Config::GetConfigParameters().scheduler == "fcfs") {
@@ -463,20 +466,26 @@ int main() {
             std::mt19937 gen(rd());
             std::uniform_int_distribution<> dist(Config::GetConfigParameters().min_ins, Config::GetConfigParameters().max_ins);
 
+            std::uniform_int_distribution<> mem_dist(Config::GetConfigParameters().min_mem_per_proc, Config::GetConfigParameters().max_mem_per_proc);
+
             if (!scheduler_testing) {
                 scheduler_testing = true;
-                int mem_size = 1024;
+
                 scheduler_thread = std::thread([&]() {
                     while (scheduler_testing) {
                         int commands_per_process = dist(gen);
-                       
+                        int mem_size;
+
+                        // Pick the configured memory allocation
+                        do {
+                            mem_size = mem_dist(gen);
+                        } while (!isPowerOfTwo(mem_size));
+
                         if (Config::GetConfigParameters().scheduler == "fcfs") {
-                            //fcfs_scheduler.add_process(new Process("process" + std::to_string(++process_count), commands_per_process));
                             Process* p = new Process("process" + std::to_string(++process_count), commands_per_process, mem_size);
                             p->instructions = generate_dummy_instructions(commands_per_process);
                             p->total_commands = p->instructions.size();
                             fcfs_scheduler.add_process(p);
-
                         }
 
                         if (Config::GetConfigParameters().scheduler == "rr") {
@@ -486,20 +495,19 @@ int main() {
                             rr_scheduler.add_process(p);
                         }
 
-
-
-                        std::this_thread::sleep_for(std::chrono::milliseconds((int)(Config::GetConfigParameters().batch_process_freq * 1000)));
-
+                        std::this_thread::sleep_for(std::chrono::milliseconds(
+                            static_cast<int>(Config::GetConfigParameters().batch_process_freq * 1000)
+                        ));
                     }
                     });
-                scheduler_thread.detach();
 
+                scheduler_thread.detach();
                 std::cout << "Scheduler test execution started.\n";
             }
             else {
                 std::cout << "Scheduler test is already running.\n";
             }
-        }
+         }
         
 
         // "screen -ls"
