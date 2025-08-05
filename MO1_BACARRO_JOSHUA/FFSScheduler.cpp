@@ -11,7 +11,8 @@
 #include <algorithm>  // for clamp or fallback to min/max
 #include <cctype>     // for isdigit
 #include "MemoryManager.h"
-
+extern int idle_cpu_ticks;
+extern int total_cpu_ticks;
 extern int frame_size;
 extern MemoryManager* memory_manager;
 FCFS_Scheduler::FCFS_Scheduler(int cores) : num_cores(cores), running(true) {}
@@ -68,6 +69,8 @@ void FCFS_Scheduler::cpu_worker(int core_id) {
             cv.wait(lock, [&] { return !process_queue.empty() || !running; });
 
             if (!running && process_queue.empty()) break;
+            idle_cpu_ticks++;
+            total_cpu_ticks++;
 
             proc = process_queue.front();
             process_queue.pop();

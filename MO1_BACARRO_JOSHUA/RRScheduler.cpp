@@ -6,7 +6,8 @@
 #include "Instruction.h"
 #include <cctype>
 #include "MemoryManager.h"
-
+extern int idle_cpu_ticks;
+extern int total_cpu_ticks;
 extern int frame_size;
 extern MemoryManager* memory_manager;
 RR_Scheduler::RR_Scheduler(int cores, int quantum) : num_cores(cores), time_quantum(quantum), running(false) {}
@@ -54,7 +55,8 @@ void RR_Scheduler::cpu_worker(int core_id) {
             cv.wait(lock, [&] { return !process_queue.empty() || !running; });
 
             if (!running && process_queue.empty()) break;
-
+            idle_cpu_ticks++;
+            total_cpu_ticks++;
             proc = process_queue.front();
             process_queue.pop();
             proc->core_id = core_id;
@@ -399,12 +401,21 @@ void RR_Scheduler::execute_instruction(Process* proc, const Instruction& instr) 
             }
 
             std::vector<uint16_t>& frame_data = memory_manager->get_frame_data(proc->name, virtual_page);
+
+            if (offset >= frame_data.size()) {
+                std::cout << "Process " << proc->name << " shut down due to memory access violation error at "
+                    << proc->get_start_time() << ". " << addr_str << " invalid.\n";
+                proc->executed_commands = proc->total_commands;
+                return;
+            }
+
             proc->variables[var_name] = frame_data[offset];
         }
         catch (...) {
             std::cout << "READ instruction failed (invalid address).\n";
         }
     }
+
 
     else if (instr.type == InstructionType::WRITE) {
         std::string addr_str = instr.args[0];
@@ -419,7 +430,6 @@ void RR_Scheduler::execute_instruction(Process* proc, const Instruction& instr) 
                 return;
             }
 
-            // ✅ Demand paging logic
             int virtual_page = addr / frame_size;
             int offset = addr % frame_size;
 
@@ -444,15 +454,23 @@ void RR_Scheduler::execute_instruction(Process* proc, const Instruction& instr) 
                 value = proc->variables.count(val_str) ? proc->variables[val_str] : 0;
             }
 
-            // ✅ Write to backing frame and memory map
-            memory_manager->get_frame_data(proc->name, virtual_page)[offset] = value;
-            proc->memory_map[addr] = value;  // ✅ visible in process-smi
+            std::vector<uint16_t>& frame_data = memory_manager->get_frame_data(proc->name, virtual_page);
 
+            if (offset >= frame_data.size()) {
+                std::cout << "Process " << proc->name << " shut down due to memory access violation error at "
+                    << proc->get_start_time() << ". " << addr_str << " invalid.\n";
+                proc->executed_commands = proc->total_commands;
+                return;
+            }
+
+            frame_data[offset] = value;
+            proc->memory_map[addr] = value;
         }
         catch (...) {
             std::cout << "WRITE instruction failed (invalid address/value).\n";
         }
     }
+
 
 
 

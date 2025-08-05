@@ -3,6 +3,10 @@
 #include <sys/stat.h>
 #include <direct.h>
 #include<iostream>
+
+
+extern int num_paged_in;
+extern int num_paged_out;
 void create_swap_folder() {
 #ifdef _WIN32
     _mkdir("swap");  // Windows
@@ -27,6 +31,7 @@ int MemoryManager::allocate_frame(const std::string& process_name, int virtual_p
             std::cout << "[ERROR] Tried to allocate frame with frame_size = 0\n";
             exit(1);
         }
+
         if (!frame_table[i].used) {
             frame_table[i].used = true;
             frame_table[i].owner_process = process_name;
@@ -36,13 +41,16 @@ int MemoryManager::allocate_frame(const std::string& process_name, int virtual_p
             if (!load_from_swap(process_name, virtual_page, data)) {
                 data = std::vector<uint16_t>(frame_size, 0); // fresh page
             }
+
             frames[process_name][virtual_page] = data;
 
+            num_paged_in++;  // ✅ only after successful allocation
             return i;
         }
     }
     return -1; // no free frame
 }
+
 
 
 void MemoryManager::free_frame(int frame_index) {
@@ -78,7 +86,7 @@ int MemoryManager::evict_and_allocate(const std::string& process_name, int virtu
             std::string evicted_proc = frame_table[i].owner_process;
             int evicted_page = frame_table[i].virtual_page;
 
-            // ✅ Only save if exists
+            // ✅ Save evicted page to swap
             if (frames.count(evicted_proc) && frames[evicted_proc].count(evicted_page)) {
                 save_to_swap(evicted_proc, evicted_page, frames[evicted_proc][evicted_page]);
                 frames[evicted_proc].erase(evicted_page);
@@ -90,13 +98,17 @@ int MemoryManager::evict_and_allocate(const std::string& process_name, int virtu
             if (!load_from_swap(process_name, virtual_page, data)) {
                 data = std::vector<uint16_t>(frame_size, 0);
             }
+
             frames[process_name][virtual_page] = data;
 
+            num_paged_out++;  // ✅ after eviction
+            num_paged_in++;   // ✅ after bringing in new page
             return i;
         }
     }
     return -1;
 }
+
 
 
 bool MemoryManager::save_to_swap(const std::string& process_name, int page_number, const std::vector<uint16_t>& data) {

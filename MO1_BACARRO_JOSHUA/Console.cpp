@@ -8,7 +8,11 @@
 
 extern MemoryManager* memory_manager;
 extern int frame_size;
-
+extern int idle_cpu_ticks;
+extern int active_cpu_ticks;
+extern int total_cpu_ticks;
+extern int num_paged_in;
+extern int num_paged_out;
 // Constructor
 Console::Console(std::string n, int cLine, int tLines, int id)
     : name(n), currentLine(cLine), totalLines(tLines), processId(id) {
@@ -55,10 +59,16 @@ void Console::command_vmstat() {
     std::cout << "Free Frames       : " << free << "\n";
     std::cout << "Frame Size (bytes): " << frame_size << "\n\n";
 
+    std::cout << "Idle CPU Ticks    : " << idle_cpu_ticks << "\n";
+    std::cout << "Active CPU Ticks  : " << active_cpu_ticks << "\n";
+    std::cout << "Total CPU Ticks   : " << total_cpu_ticks << "\n";
+    std::cout << "Paged In          : " << num_paged_in << "\n";
+    std::cout << "Paged Out         : " << num_paged_out << "\n\n";
+
     std::cout << "Active Pages per Process:\n";
-    for (auto it = process_pages.begin(); it != process_pages.end(); ++it) {
-        const std::string& proc = it->first;
-        const std::vector<int>& pages = it->second;
+    for (const auto& it : process_pages) {
+        const std::string& proc = it.first;
+        const std::vector<int>& pages = it.second;
 
         std::cout << "  " << proc << ": ";
         for (int vp : pages) {

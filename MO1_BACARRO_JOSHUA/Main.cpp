@@ -1,4 +1,4 @@
-#include<iostream>
+﻿#include<iostream>
 #include <string>
 #include "ConsoleManager.h";
 #include "Commands.h"
@@ -13,6 +13,11 @@
 #include <random>
 #include <unordered_set>
 #include "MemoryManager.h"
+int idle_cpu_ticks = 0;
+int active_cpu_ticks = 0;
+int total_cpu_ticks = 0;
+int num_paged_in = 0;
+int num_paged_out = 0;
 
 int frame_size;
 MemoryManager* memory_manager = nullptr;
@@ -107,7 +112,7 @@ std::vector<Instruction> generate_dummy_instructions(int count) {
 std::vector<Instruction> generate_dummy_instructions(int count) {
     std::vector<Instruction> instructions;
 
-    // Declare x, y, z first � these are only done once
+    // Declare x, y, z first — these are only done once
     instructions.push_back({ InstructionType::DECLARE, { "x", "0" } });
     instructions.push_back({ InstructionType::DECLARE, { "y", "0" } });
     instructions.push_back({ InstructionType::DECLARE, { "z", "0" } });
@@ -141,7 +146,7 @@ std::vector<Instruction> generate_dummy_instructions(int count) {
 std::vector<Instruction> generate_dummy_instructions(int count) {
     std::vector<Instruction> instructions;
 
-    // Pre-declare x, y, z � always 3 instructions
+    // Pre-declare x, y, z — always 3 instructions
     std::vector<Instruction> declarations = {
         { InstructionType::DECLARE, { "x", "0" } },
         { InstructionType::DECLARE, { "y", "0" } },
@@ -464,9 +469,15 @@ int main() {
         else if (command == "scheduler-start") {
             std::random_device rd;
             std::mt19937 gen(rd());
-            std::uniform_int_distribution<> dist(Config::GetConfigParameters().min_ins, Config::GetConfigParameters().max_ins);
+            std::uniform_int_distribution<> dist(
+                Config::GetConfigParameters().min_ins,
+                Config::GetConfigParameters().max_ins
+            );
 
-            std::uniform_int_distribution<> mem_dist(Config::GetConfigParameters().min_mem_per_proc, Config::GetConfigParameters().max_mem_per_proc);
+            std::uniform_int_distribution<> mem_dist(
+                Config::GetConfigParameters().min_mem_per_proc,
+                Config::GetConfigParameters().max_mem_per_proc
+            );
 
             if (!scheduler_testing) {
                 scheduler_testing = true;
@@ -476,22 +487,31 @@ int main() {
                         int commands_per_process = dist(gen);
                         int mem_size;
 
-                        // Pick the configured memory allocation
+                        // Pick a memory size that's a power of two
                         do {
                             mem_size = mem_dist(gen);
                         } while (!isPowerOfTwo(mem_size));
 
-                        if (Config::GetConfigParameters().scheduler == "fcfs") {
-                            Process* p = new Process("process" + std::to_string(++process_count), commands_per_process, mem_size);
-                            p->instructions = generate_dummy_instructions(commands_per_process);
-                            p->total_commands = p->instructions.size();
-                            fcfs_scheduler.add_process(p);
+                        // 🔒 Skip if process needs more memory than system has
+                        if (mem_size > Config::GetConfigParameters().max_overall_mem) {
+                            std::cout << "[SKIPPED] Process requires " << mem_size
+                                << " bytes which exceeds max system memory of "
+                                << Config::GetConfigParameters().max_overall_mem << " bytes.\n";
+                            std::this_thread::sleep_for(std::chrono::milliseconds(
+                                static_cast<int>(Config::GetConfigParameters().batch_process_freq * 1000)
+                            ));
+                            continue;
                         }
 
-                        if (Config::GetConfigParameters().scheduler == "rr") {
-                            Process* p = new Process("process" + std::to_string(++process_count), commands_per_process, mem_size);
-                            p->instructions = generate_dummy_instructions(commands_per_process);
-                            p->total_commands = p->instructions.size();
+                        std::string pname = "process" + std::to_string(++process_count);
+                        Process* p = new Process(pname, commands_per_process, mem_size);
+                        p->instructions = generate_dummy_instructions(commands_per_process);
+                        p->total_commands = p->instructions.size();
+
+                        if (Config::GetConfigParameters().scheduler == "fcfs") {
+                            fcfs_scheduler.add_process(p);
+                        }
+                        else if (Config::GetConfigParameters().scheduler == "rr") {
                             rr_scheduler.add_process(p);
                         }
 
@@ -507,7 +527,8 @@ int main() {
             else {
                 std::cout << "Scheduler test is already running.\n";
             }
-         }
+        }
+
         
 
         // "screen -ls"
